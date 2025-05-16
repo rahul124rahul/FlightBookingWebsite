@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login Page</title>
+  
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"/>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.5/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+
+<body class="d-flex flex-column min-vh-100 bg-light">
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark" style="background-color: #004085;">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="#">Flight Booking System</a>
+    </div>
+  </nav>
+
+  <!-- Registration Form -->
+  <div class="container py-5">
+    <div class="row justify-content-center">
+      <div class="col-lg-8">
+        <div class="card shadow-sm">
+          <div class="card-body">
+            <h2 class="text-center text-primary mb-4">Account Registration</h2>
+
+            <form id="regForm" novalidate>
+              <!-- User Type -->
+              <div class="mb-3">
+                <label for="userType" class="form-label">I am registering as:</label>
+                <select class="form-select" id="userType" required>
+                  <option value="Customer" selected>Customer</option>
+                  <option value="Airplane Admin">Airplane Admin</option>
+                </select>
+                <div class="invalid-feedback">This field is required</div>
+              </div>
+
+              <!-- Personal Information -->
+              <h5 class="text-secondary mt-4">Personal Information</h5>
+              <div class="row g-3">
+                <div class="col-md-12">
+                  <label for="Name" class="form-label">Full Name</label>
+                  <input type="text" class="form-control" id="Name" required/>
+                  <div class="invalid-feedback">Must be at least 5 characters</div>
+                </div>
+                <div class="col-md-6">
+                  <label for="email" class="form-label">Email Address</label>
+                  <input type="email" class="form-control" id="email" required/>
+                  <div class="invalid-feedback" id="emailError">Invalid email</div>
+                </div>
+                <div class="col-md-6">
+                  <label for="phone" class="form-label">Phone Number</label>
+                  <input type="tel" class="form-control" id="phone" required/>
+                  <div class="invalid-feedback">This field is required</div>
+                </div>
+              </div>
+
+              <!-- Passport Section -->
+              <div class="mt-4" id="companySection">
+                <h5 class="text-secondary">Passport Information</h5>
+                <div class="mb-3">
+                  <label for="passportNumber" class="form-label">Passport Number</label>
+                  <input type="text" class="form-control" id="passportNumber" placeholder="Enter Passport Number" required/>
+                  <div class="invalid-feedback">This field is required</div>
+                </div>
+              </div>
+
+              <!-- Account Setup -->
+              <h5 class="text-secondary mt-4">Account Setup</h5>
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label for="password" class="form-label">Password</label>
+                  <input type="password" class="form-control" id="password" required/>
+                  <div class="invalid-feedback">This field is required</div>
+                </div>
+                <div class="col-md-6">
+                  <label for="confirmPassword" class="form-label">Confirm Password</label>
+                  <input type="password" class="form-control" id="confirmPassword" required/>
+                  <div class="invalid-feedback">Passwords must match</div>
+                </div>
+              </div>
+
+              <!-- Submit Buttons -->
+              <div class="d-flex justify-content-end gap-2 mt-4">
+                <button type="reset" class="btn btn-outline-secondary">Reset Form</button>
+                <button type="submit" class="btn btn-primary">Create Account</button>
+              </div>
+            </form>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="py-3 mt-auto text-white text-center" style="background-color: #004085;">
+    <div class="container">
+      &copy; 2025 Complaint Management System
+    </div>
+  </footer>
+
+  <!-- Script -->
+  <script>
+    const url = "http://localhost:8080/auth";
+    const form = document.getElementById("regForm");
+    const userTypeSelect = document.getElementById("userType");
+    const companySection = document.getElementById("companySection");
+    const passportInput = document.getElementById("passportNumber");
+
+    const NameInput = document.getElementById("Name");
+    const emailInput = document.getElementById("email");
+    const phoneInput = document.getElementById("phone");
+    const passwordInput = document.getElementById("password");
+    const confirmInput = document.getElementById("confirmPassword");
+
+  
+  // Apply validation styles on blur
+  const inputsToValidate = [NameInput, emailInput, phoneInput, passwordInput, confirmInput, passportInput];
+
+  inputsToValidate.forEach((input) => {
+    input.addEventListener("blur", () => {
+      validateField(input);
+    });
+  });
+
+  function validateField(input) {
+    const value = input.value.trim();
+    let valid = true;
+
+    if (input === NameInput && value.length < 5) {
+      valid = false;
+    } else if (input === emailInput && !/^\S+@\S+\.\S+$/.test(value)) {
+      valid = false;
+    } else if (input === phoneInput && value.length < 8) {
+      valid = false;
+    } else if (input === passwordInput && value.length < 6) {
+      valid = false;
+    } else if (input === confirmInput && value !== passwordInput.value) {
+      valid = false;
+    } else if (input === passportInput && !companySection.classList.contains("d-none") && value === "") {
+      valid = false;
+    }
+
+    if (valid) {
+      input.classList.remove("is-invalid");
+      input.classList.add("is-valid");
+    } else {
+      input.classList.remove("is-valid");
+      input.classList.add("is-invalid");
+    }
+  }
+
+
+    // Toggle passport section based on user type
+    userTypeSelect.addEventListener("change", function () {
+      if (this.value === "Customer") {
+        companySection.classList.remove("d-none");
+        passportInput.setAttribute("required", "true");
+      } else {
+        companySection.classList.add("d-none");
+        passportInput.removeAttribute("required");
+      }
+    });
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+
+      // Password match check
+      if (passwordInput.value !== confirmInput.value) {
+        confirmInput.classList.add("is-invalid");
+        passwordInput.classList.add("is-invalid");
+        return;
+      } else {
+        confirmInput.classList.remove("is-invalid");
+        passwordInput.classList.remove("is-invalid");
+      }
+      regUser();
+      
+    });
+
+    
+
+    function regUser() {
+      const userType = userTypeSelect.value;
+      
+      const userObject = {
+      };
+
+      if (userType === "Customer") {
+        userObject.name = NameInput.value.trim();
+        userObject.email = emailInput.value.trim();
+        userObject.phoneNumber = phoneInput.value.trim();
+        userObject.password = passwordInput.value;
+        userObject.passportNumber = passportInput.value.trim();
+
+        fetch(`${url}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userObject),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            return response.text().then((error) => {
+              if (response.status === 409) {
+                emailInput.classList.add("is-invalid");
+                document.getElementById("emailError").textContent = error;
+              }
+              throw new Error(error);
+            });
+          }
+          return response.text();
+        })
+        .then(() => {
+          form.reset();
+          window.location.href = "login.html";
+        })
+        .catch((err) => console.error("Registration failed:", err));
+        return;
+      }
+      else{
+        userObject.airlineAdminName = NameInput.value.trim();
+        userObject.airlineEmail = emailInput.value.trim();
+        userObject.contactNumber = phoneInput.value.trim();
+        userObject.password = passwordInput.value;
+
+        fetch(`${url}/register-admin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(userObject),
+      })
+        .then((response) => {
+          if (!response.ok) {
+            return response.text().then((error) => {
+              if (response.status === 409) {
+                emailInput.classList.add("is-invalid");
+                document.getElementById("emailError").textContent = error;
+              }
+              throw new Error(error);
+            });
+          }
+          return response.text();
+        })
+        .then(() => {
+          form.reset();
+          window.location.href = "Flight_login.html";
+        })
+        .catch((err) => console.error("Registration failed:", err));
+      }
+
+      
+    }
+  </script>
+</body>
+</html>
