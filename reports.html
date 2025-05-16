@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flight System Reports</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .report-card {
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            transition: transform 0.2s;
+            height: 100%;
+        }
+        .report-card:hover {
+            transform: translateY(-5px);
+        }
+        .report-header {
+            background-color: #004085;
+            color: white;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            padding: 15px;
+        }
+        .date-range-picker {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .chart-container {
+            height: 250px;
+            margin-bottom: 15px;
+        }
+        .export-btn {
+            background-color: #28a745;
+            color: white;
+        }
+        .export-btn:hover {
+            background-color: #218838;
+            color: white;
+        }
+        .table-responsive {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .stat-card {
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+        .stat-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #004085;
+        }
+        .error-message {
+            display: none;
+            color: #dc3545;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <h2 class="mb-4"><i class="bi bi-graph-up"></i> Flight System Reports</h2>
+        <div id="errorMessage" class="error-message"></div>
+
+        <!-- Date Range Selector -->
+        <div class="date-range-picker mb-4">
+            <form id="reportForm">
+                <div class="row">
+                    <div class="col-md-4">
+                        <label for="startDate" class="form-label">Start Date</label>
+                        <input type="date" class="form-control" id="startDate" name="startDate">
+                    </div>
+                    <div class="col-md-4">
+                        <label for="endDate" class="form-label">End Date</label>
+                        <input type="date" class="form-control" id="endDate" name="endDate">
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="bi bi-filter"></i> Apply Filter
+                        </button>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-secondary w-100" onclick="resetDates()">
+                            <i class="bi bi-arrow-counterclockwise"></i> Reset
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <!-- Summary Stats -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div><i class="bi bi-calendar-check"></i> Total Bookings</div>
+                    <div class="stat-value" id="totalBookings">0</div>
+                    <small class="text-muted">Selected period</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div><i class="bi bi-airplane"></i> Active Flights</div>
+                    <div class="stat-value" id="totalFlights">0</div>
+                    <small class="text-muted">In system</small>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="stat-card">
+                    <div><i class="bi bi-cash-coin"></i> Total Revenue</div>
+                    <div class="stat-value" id="totalRevenue">₹0</div>
+                    <small class="text-muted">Selected period</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Report Cards -->
+        <div class="row">
+            <!-- Bookings by Date Chart -->
+            <div class="col-lg-6">
+                <div class="report-card">
+                    <div class="report-header">
+                        <h5 class="mb-0"><i class="bi bi-bar-chart"></i> Bookings by Date</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="bookingsChart"></canvas>
+                        </div>
+                        <button class="btn export-btn w-100" onclick="exportChartData('bookings')">
+                            <i class="bi bi-download"></i> Export to CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revenue by Flight Chart -->
+            <div class="col-lg-6">
+                <div class="report-card">
+                    <div class="report-header">
+                        <h5 class="mb-0"><i class="bi bi-pie-chart"></i> Revenue by Flight</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="revenueChart"></canvas>
+                        </div>
+                        <button class="btn export-btn w-100" onclick="exportChartData('revenue')">
+                            <i class="bi bi-download"></i> Export to CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Reports -->
+        <div class="row mt-4">
+            <!-- Bookings per Flight -->
+            <div class="col-lg-6">
+                <div class="report-card">
+                    <div class="report-header">
+                        <h5 class="mb-0"><i class="bi bi-airplane"></i> Bookings per Flight</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm" id="bookingsPerFlightTable">
+                                <thead>
+                                    <tr>
+                                        <th>Flight Number</th>
+                                        <th>Route</th>
+                                        <th>Bookings</th>
+                                        <th>Occupancy</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <button class="btn export-btn w-100" onclick="exportTableData('bookings-per-flight')">
+                            <i class="bi bi-download"></i> Export to CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Revenue Details -->
+            <div class="col-lg-6">
+                <div class="report-card">
+                    <div class="report-header">
+                        <h5 class="mb-0"><i class="bi bi-cash-stack"></i> Revenue Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm" id="revenueDetailsTable">
+                                <thead>
+                                    <tr>
+                                        <th>Flight</th>
+                                        <th>Departure</th>
+                                        <th>Avg. Fare</th>
+                                        <th>Revenue</th>
+                                        <th>% of Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody></tbody>
+                            </table>
+                        </div>
+                        <button class="btn export-btn w-100" onclick="exportTableData('revenue-details')">
+                            <i class="bi bi-download"></i> Export to CSV
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Detailed Booking Report -->
+        <div class="report-card mt-4">
+            <div class="report-header">
+                <h5 class="mb-0"><i class="bi bi-list-check"></i> Detailed Booking Report</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped" id="detailedBookingTable">
+                        <thead>
+                            <tr>
+                                <th>Booking ID</th>
+                                <th>Passenger</th>
+                                <th>Flight</th>
+                                <th>Departure</th>
+                                <th>Arrival</th>
+                                <th>Class</th>
+                                <th>Amount</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <button class="btn export-btn mt-3" onclick="exportTableData('detailed-bookings')">
+                    <i class="bi bi-download"></i> Export Full Report to CSV
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Backend API base URL (adjust as needed)
+        const API_BASE_URL = 'http://localhost:8080/api/v1/reports';
+
+        // Store chart instances
+        let bookingsChartInstance = null;
+        let revenueChartInstance = null;
+
+        // Error handling utility
+        function showError(message) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        // Format date utility
+        function formatDate(dateStr, format) {
+            try {
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) {
+                    return 'Invalid Date';
+                }
+                if (format === 'dd MMM yyyy') {
+                    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                } else if (format === 'dd MMM yyyy HH:mm') {
+                    return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+                }
+                return date.toISOString().split('T')[0];
+            } catch (error) {
+                console.error('Date formatting error:', error);
+                return 'Invalid Date';
+            }
+        }
+
+        // Validate date string
+        function isValidDate(dateStr) {
+            if (!dateStr) return false;
+            const date = new Date(dateStr);
+            return !isNaN(date.getTime());
+        }
+
+        // Fetch report data from backend
+        async function fetchReportData(startDate, endDate) {
+            try {
+                // Validate dates before sending
+                if (startDate && !isValidDate(startDate)) {
+                    throw new Error('Invalid start date');
+                }
+                if (endDate && !isValidDate(endDate)) {
+                    throw new Error('Invalid end date');
+                }
+                if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+                    throw new Error('Start date cannot be after end date');
+                }
+
+                const url = new URL(`${API_BASE_URL}/flight-system`);
+                if (startDate) url.searchParams.append('startDate', startDate);
+                if (endDate) url.searchParams.append('endDate', endDate);
+
+                const response = await fetch(url);
+                if (!response.ok) {
+                    let errorMessage = response.statusText || 'Unknown error';
+                    try {
+                        const errorBody = await response.json();
+                        errorMessage = errorBody.message || errorBody.error || errorMessage;
+                        console.error('API error response:', errorBody);
+                    } catch (e) {
+                        console.error('Non-JSON error response:', response.status, response.statusText);
+                    }
+                    throw new Error(`Failed to fetch report: ${response.status} - ${errorMessage}`);
+                }
+                const data = await response.json();
+                return data;
+            } catch (error) {
+                showError(`Error fetching report: ${error.message}`);
+                console.error(error);
+                return null;
+            }
+        }
+
+        // Render summary stats
+        function renderSummaryStats(data) {
+            try {
+                document.getElementById('totalBookings').textContent = data.totalBookings || 0;
+                document.getElementById('totalFlights').textContent = data.totalFlights || 0;
+                document.getElementById('totalRevenue').textContent = `₹${(data.totalRevenue || 0).toLocaleString('en-IN')}`;
+            } catch (error) {
+                showError('Error rendering summary stats');
+                console.error(error);
+            }
+        }
+
+        // Render bookings by date chart
+        function renderBookingsChart(data) {
+            try {
+                const bookingsCtx = document.getElementById('bookingsChart').getContext('2d');
+                const bookingsByDate = data.bookingsByDate || {};
+                const labels = Object.keys(bookingsByDate).sort();
+                const values = labels.map(date => bookingsByDate[date]);
+
+                // Destroy existing chart if it exists
+                if (bookingsChartInstance) {
+                    bookingsChartInstance.destroy();
+                }
+
+                bookingsChartInstance = new Chart(bookingsCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels.map(date => formatDate(date, 'dd MMM yyyy')),
+                        datasets: [{
+                            label: 'Bookings',
+                            data: values,
+                            backgroundColor: 'rgba(0, 64, 133, 0.7)',
+                            borderColor: 'rgba(0, 64, 133, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                showError('Error rendering bookings chart');
+                console.error(error);
+            }
+        }
+
+        // Render revenue by flight chart
+        function renderRevenueChart(data) {
+            try {
+                const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+                const revenueByFlight = data.revenueByFlight || [];
+                const labels = revenueByFlight.map(f => f.flightNumber);
+                const values = revenueByFlight.map(f => f.percentage);
+
+                // Destroy existing chart if it exists
+                if (revenueChartInstance) {
+                    revenueChartInstance.destroy();
+                }
+
+                revenueChartInstance = new Chart(revenueCtx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: [
+                                'rgba(0, 64, 133, 0.7)',
+                                'rgba(40, 167, 69, 0.7)',
+                                'rgba(220, 53, 69, 0.7)',
+                                'rgba(255, 193, 7, 0.7)',
+                                'rgba(108, 117, 125, 0.7)',
+                                'rgba(153, 102, 255, 0.7)',
+                                'rgba(255, 159, 64, 0.7)',
+                                'rgba(75, 192, 192, 0.7)'
+                            ],
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false
+                    }
+                });
+            } catch (error) {
+                showError('Error rendering revenue chart');
+                console.error(error);
+            }
+        }
+
+        // Render bookings per flight table
+        function renderBookingsPerFlight(data) {
+            try {
+                const tbody = document.querySelector('#bookingsPerFlightTable tbody');
+                tbody.innerHTML = '';
+                (data.bookingsPerFlight || []).forEach(flight => {
+                    const tr = document.createElement('tr');
+                    // Scale occupancyRate (assuming backend returns fraction)
+                    const scaledOccupancyRate = (flight.occupancyRate || 0) * 100;
+                    tr.innerHTML = `
+                        <td>${flight.flightNumber || 'N/A'}</td>
+                        <td>${flight.route || 'N/A'}</td>
+                        <td>${flight.bookingCount || 0}</td>
+                        <td>
+                            <div class="progress" style="height: 20px;">
+                                <div class="progress-bar ${scaledOccupancyRate > 90 ? 'bg-danger' : scaledOccupancyRate > 70 ? 'bg-warning' : 'bg-success'}" 
+                                     style="width: ${scaledOccupancyRate}%">
+                                    ${scaledOccupancyRate.toFixed(1)}%
+                                </div>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                showError('Error rendering bookings per flight table');
+                console.error(error);
+            }
+        }
+
+        // Render revenue details table
+        function renderRevenueDetails(data) {
+            try {
+                const tbody = document.querySelector('#revenueDetailsTable tbody');
+                tbody.innerHTML = '';
+                (data.revenueDetails || []).forEach(flight => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${flight.flightNumber || 'N/A'}</td>
+                        <td>${formatDate(flight.departureTime, 'dd MMM yyyy')}</td>
+                        <td>₹${(flight.avgFare || 0).toLocaleString('en-IN')}</td>
+                        <td>₹${(flight.revenue || 0).toLocaleString('en-IN')}</td>
+                        <td>${(flight.revenuePercentage || 0).toFixed(1)}%</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                showError('Error rendering revenue details table');
+                console.error(error);
+            }
+        }
+
+        // Render detailed booking report
+        function renderDetailedBookings(data) {
+            try {
+                const tbody = document.querySelector('#detailedBookingTable tbody');
+                tbody.innerHTML = '';
+                (data.detailedBookings || []).forEach(booking => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${booking.bookingId || 'N/A'}</td>
+                        <td>${booking.passengerName || 'N/A'}</td>
+                        <td>${booking.flightNumber || 'N/A'}</td>
+                        <td>
+                            <span>${booking.departureAirport || 'N/A'}</span><br>
+                            <small class="text-muted">${formatDate(booking.departureTime, 'dd MMM yyyy HH:mm')}</small>
+                        </td>
+                        <td>
+                            <span>${booking.arrivalAirport || 'N/A'}</span><br>
+                            <small class="text-muted">${formatDate(booking.arrivalTime, 'dd MMM yyyy HH:mm')}</small>
+                        </td>
+                        <td>${booking.seatClass || 'N/A'}</td>
+                        <td>₹${(booking.amount || 0).toLocaleString('en-IN')}</td>
+                        <td>
+                            <span class="badge ${booking.status === 'CONFIRMED' ? 'bg-success' : booking.status === 'CANCELLED' ? 'bg-danger' : 'bg-warning'}">
+                                ${booking.status || 'N/A'}
+                            </span>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (error) {
+                showError('Error rendering detailed bookings table');
+                console.error(error);
+            }
+        }
+
+        // Export to CSV (placeholder)
+        function exportChartData(type) {
+            showError(`Export ${type} chart data to CSV - backend integration needed`);
+        }
+
+        function exportTableData(type) {
+            showError(`Export ${type} table data to CSV - backend integration needed`);
+        }
+
+        // Reset date pickers
+        function resetDates() {
+            try {
+                document.getElementById('startDate').value = '2024-06-17';
+                document.getElementById('endDate').value = '2025-05-17';
+                fetchAndRenderReport();
+            } catch (error) {
+                showError('Error resetting dates');
+                console.error(error);
+            }
+        }
+
+        // Fetch and render report
+        async function fetchAndRenderReport() {
+            try {
+                const startDate = document.getElementById('startDate').value;
+                const endDate = document.getElementById('endDate').value;
+
+                // Skip fetch if both dates are empty
+                if (!startDate || !endDate) {
+                    showError('Please select both start and end dates to fetch the report');
+                    return;
+                }
+
+                const data = await fetchReportData(startDate, endDate);
+                if (data) {
+                    renderSummaryStats(data);
+                    renderBookingsChart(data);
+                    renderRevenueChart(data);
+                    renderBookingsPerFlight(data);
+                    renderRevenueDetails(data);
+                    renderDetailedBookings(data);
+                }
+            } catch (error) {
+                showError('Error fetching and rendering report');
+                console.error(error);
+            }
+        }
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            try {
+                // Set default dates to match Postman
+                document.getElementById('startDate').value = '2024-06-17';
+                document.getElementById('endDate').value = '2025-05-17';
+
+                // Initial report fetch
+                fetchAndRenderReport();
+
+                // Form submission handler
+                document.getElementById('reportForm').addEventListener('submit', (e) => {
+                    e.preventDefault();
+                    fetchAndRenderReport();
+                });
+            } catch (error) {
+                showError('Error initializing page');
+                console.error(error);
+            }
+        });
+    </script>
+</body>
+</html>
