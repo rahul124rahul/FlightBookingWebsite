@@ -234,7 +234,6 @@
                                 <th>Arrival</th>
                                 <th>Class</th>
                                 <th>Amount</th>
-                                <th>Status</th>
                             </tr>
                         </thead>
                         <tbody></tbody>
@@ -292,44 +291,61 @@
             return !isNaN(date.getTime());
         }
 
-        // Fetch report data from backend
         async function fetchReportData(startDate, endDate) {
-            try {
-                // Validate dates before sending
-                if (startDate && !isValidDate(startDate)) {
-                    throw new Error('Invalid start date');
-                }
-                if (endDate && !isValidDate(endDate)) {
-                    throw new Error('Invalid end date');
-                }
-                if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
-                    throw new Error('Start date cannot be after end date');
-                }
+    // Retrieve the JWT token from localStorage or sessionStorage (adjust as per your app)
+    const token = localStorage.getItem('jwtToken'); // Or use sessionStorage.getItem('jwtToken');
 
-                const url = new URL(`${API_BASE_URL}/flight-system`);
-                if (startDate) url.searchParams.append('startDate', startDate);
-                if (endDate) url.searchParams.append('endDate', endDate);
+    if (!token) {
+        showError('User is not authenticated. Please log in again.');
+        return null;
+    }
 
-                const response = await fetch(url);
-                if (!response.ok) {
-                    let errorMessage = response.statusText || 'Unknown error';
-                    try {
-                        const errorBody = await response.json();
-                        errorMessage = errorBody.message || errorBody.error || errorMessage;
-                        console.error('API error response:', errorBody);
-                    } catch (e) {
-                        console.error('Non-JSON error response:', response.status, response.statusText);
-                    }
-                    throw new Error(`Failed to fetch report: ${response.status} - ${errorMessage}`);
-                }
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                showError(`Error fetching report: ${error.message}`);
-                console.error(error);
-                return null;
-            }
+    try {
+        // Validate dates
+        if (startDate && !isValidDate(startDate)) {
+            throw new Error('Invalid start date');
         }
+        if (endDate && !isValidDate(endDate)) {
+            throw new Error('Invalid end date');
+        }
+        if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+            throw new Error('Start date cannot be after end date');
+        }
+
+        const url = new URL(`${API_BASE_URL}/flight-system`);
+        if (startDate) url.searchParams.append('startDate', startDate);
+        if (endDate) url.searchParams.append('endDate', endDate);
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (!response.ok) {
+            let errorMessage = response.statusText || 'Unknown error';
+            try {
+                const errorBody = await response.json();
+                errorMessage = errorBody.message || errorBody.error || errorMessage;
+                console.error('API error response:', errorBody);
+            } catch (e) {
+                console.error('Non-JSON error response:', response.status, response.statusText);
+            }
+            throw new Error(`Failed to fetch report: ${response.status} - ${errorMessage}`);
+        }
+
+        const data = await response.json();
+        return data;
+
+    } catch (error) {
+        showError(`Error fetching report: ${error.message}`);
+        console.error(error);
+        return null;
+    }
+}
+
 
         // Render summary stats
         function renderSummaryStats(data) {
@@ -500,11 +516,6 @@
                         </td>
                         <td>${booking.seatClass || 'N/A'}</td>
                         <td>₹${(booking.amount || 0).toLocaleString('en-IN')}</td>
-                        <td>
-                            <span class="badge ${booking.status === 'CONFIRMED' ? 'bg-success' : booking.status === 'CANCELLED' ? 'bg-danger' : 'bg-warning'}">
-                                ${booking.status || 'N/A'}
-                            </span>
-                        </td>
                     `;
                     tbody.appendChild(tr);
                 });
